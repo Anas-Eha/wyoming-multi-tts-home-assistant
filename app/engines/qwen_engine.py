@@ -164,7 +164,6 @@ class QwenTtsEngine(TtsEngine):
             extra={
                 "model_id": self.model_id,
                 "backend_supported_languages": self._backend_supported_languages,
-                "wyoming_program_name": "qwen_tts",
                 "runtime_options": {
                     "instruct": {
                         "type": "string",

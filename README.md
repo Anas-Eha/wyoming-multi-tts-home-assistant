@@ -88,8 +88,10 @@ curl -X POST http://YOUR_HOST:8280/v1/audio/speech \
 Current behavior:
 
 - The endpoint uses the currently active engine from the control panel / Wyoming manager.
+- The endpoint represents a single logical TTS service: `wyoming-multi-tts`.
 - Supported `response_format` values are `wav` and `pcm`.
-- `model` is currently accepted for client compatibility but ignored by the server.
+- `model` is accepted for OpenAI-client compatibility, but it does not select the backend engine.
+- Backend selection is handled only by the web UI / engine management API.
 - `speed` is currently accepted for client compatibility but ignored by the server.
 
 ## Persistent Data

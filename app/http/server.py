@@ -14,6 +14,8 @@ from app.engines.manager import EngineManager
 
 from .models import ActivateEngineRequest, EngineOptionsRequest, OpenAiSpeechRequest, SelectEngineRequest, SynthesizeRequest
 
+OPENAI_SPEECH_MODEL = "wyoming-multi-tts"
+
 
 def _json_response(payload) -> JSONResponse:
     return JSONResponse(payload)
@@ -50,6 +52,7 @@ def _audio_response(result, response_format: str) -> Response:
         content=audio_bytes,
         media_type=media_type,
         headers={
+            "X-TTS-Model": OPENAI_SPEECH_MODEL,
             "X-TTS-Engine-Id": result.engine_id,
             "X-TTS-Voice": result.voice,
             "X-TTS-Language": result.language,
@@ -138,8 +141,6 @@ def create_http_app(manager: EngineManager) -> FastAPI:
 
     @app.post("/v1/audio/speech")
     async def openai_audio_speech(request: OpenAiSpeechRequest):
-        del request.model
-        del request.speed
         try:
             result = await manager.synthesize(
                 text=request.input,

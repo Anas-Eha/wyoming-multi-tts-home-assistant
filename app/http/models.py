@@ -25,7 +25,7 @@ class SynthesizeRequest(BaseModel):
 
 
 class OpenAiSpeechRequest(BaseModel):
-    model: str = Field(min_length=1)
+    model: str = Field(default="wyoming-multi-tts", min_length=1)
     input: str = Field(min_length=1)
     voice: str | None = None
     response_format: str = "wav"

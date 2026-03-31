@@ -27,33 +27,50 @@ from .protocol import (
     WYOMING_AVAILABLE,
 )
 
+WYOMING_PROGRAM_NAME = "wyoming-multi-tts"
+WYOMING_VOICE_NAME = "default"
+
+
+def _collect_supported_languages(manager: EngineManager) -> list[str]:
+    languages: list[str] = []
+    registry = getattr(manager, "registry", None)
+    engines = registry.values() if isinstance(registry, dict) else [manager.active_engine]
+    for engine in engines:
+        status = engine.status()
+        for voice in status.available_voices:
+            for language in voice.languages:
+                if language not in languages:
+                    languages.append(language)
+        for language in engine.supported_languages():
+            if language not in languages:
+                languages.append(language)
+    return languages
+
 
 def _build_voices(manager: EngineManager) -> list[TtsVoice]:
     active = manager.active_engine
-    status = active.status()
+    languages = _collect_supported_languages(manager)
     return [
         TtsVoice(
-            name=voice.id,
-            description=voice.description or voice.label,
-            attribution=Attribution(name=active.display_name(), url=None),
+            name=WYOMING_VOICE_NAME,
+            description=f"Default voice routed through the active engine: {active.display_name()}",
+            attribution=Attribution(name=WYOMING_PROGRAM_NAME, url=None),
             installed=True,
             version=None,
-            languages=voice.languages,
+            languages=languages,
         )
-        for voice in status.available_voices
     ]
 
 
 def build_info(manager: EngineManager) -> Info:
     active = manager.active_engine
     status = active.status()
-    program_name = str(status.extra.get("wyoming_program_name") or active.engine_id())
     return Info(
         tts=[
             TtsProgram(
-                name=program_name,
-                description=f"Wyoming protocol server backed by {active.display_name()}",
-                attribution=Attribution(name=active.display_name(), url=None),
+                name=WYOMING_PROGRAM_NAME,
+                description=f"Multi-engine Wyoming TTS server (active engine: {active.display_name()})",
+                attribution=Attribution(name=WYOMING_PROGRAM_NAME, url=None),
                 installed=True,
                 version=__version__,
                 voices=_build_voices(manager),

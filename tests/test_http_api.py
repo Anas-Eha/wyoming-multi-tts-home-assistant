@@ -125,8 +125,30 @@ def test_openai_audio_speech_endpoint_returns_wav_bytes(tmp_path):
             )
             assert response.status_code == 200
             assert response.headers["content-type"] == "audio/wav"
+            assert response.headers["x-tts-model"] == "wyoming-multi-tts"
             assert response.headers["x-tts-engine-id"] == "fake"
             assert response.content == b"RIFF1234"
+
+    asyncio.run(run_test())
+
+
+def test_openai_audio_speech_endpoint_accepts_default_model(tmp_path):
+    engine = LoadedFakeEngine()
+    manager = EngineManager({"fake": engine}, SessionStateStore(tmp_path / "session.json"))
+    app = create_http_app(manager)
+
+    async def run_test():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            response = await client.post(
+                "/v1/audio/speech",
+                json={
+                    "input": "hej",
+                    "voice": "default",
+                },
+            )
+            assert response.status_code == 200
+            assert response.headers["x-tts-model"] == "wyoming-multi-tts"
 
     asyncio.run(run_test())
 
