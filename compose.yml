@@ -1,0 +1,60 @@
+services:
+  wyoming-multi-tts:
+    image: wyoming-multi-tts:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wyoming-multi-tts
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "0.0.0.0:10210:10210"
+      - "0.0.0.0:8280:8280"
+    networks:
+      - app-network
+    volumes:
+      - ./data/hf-cache:/data/hf-cache
+      - ./data/state:/data/state
+      - ./data/speakers:/data/speakers
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+      NVIDIA_VISIBLE_DEVICES: all
+      WYOMING_URI: tcp://0.0.0.0:10210
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8280
+      STATE_PATH: /data/state/session.json
+      SPEAKER_DIR: /data/speakers
+      HF_HOME: /data/hf-cache
+      HF_HUB_DOWNLOAD_TIMEOUT: "600"
+      HF_HUB_DISABLE_XET: "1"
+      HUGGINGFACE_HUB_DISABLE_XET: "1"
+      HF_XET_HIGH_PERFORMANCE: "1"
+      CHATTERBOX_PYTHON: /app/.venv-chatterbox/bin/python
+      QWEN_PYTHON: /app/.venv-qwen/bin/python
+      WHISPERSPEECH_PYTHON: /app/.venv-whisperspeech/bin/python
+      MMS_PYTHON: /app/.venv-mms/bin/python
+      XTTS_PYTHON: /app/.venv-xtts/bin/python
+      FISH_PYTHON: /app/.venv-fish/bin/python
+      FISH_SPEECH_REPO_DIR: /opt/fish-speech
+      FISH_REFERENCE_DIR: /data/speakers/fish
+      FISH_ENABLE_COMPILE: "1"
+      FISH_S2_PRO_RPC_TIMEOUT_SECONDS: "1800"
+      XTTS_MODEL_DIR: /data/hf-cache/xtts
+      WHISPERSPEECH_MODEL_CACHE_DIR: /data/hf-cache/whisperspeech
+      FISH_S2_PRO_MODEL_ID: fishaudio/s2-pro
+      QWEN_TTS_MODEL_ID: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+      CHATTERBOX_DEVICE: cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+networks:
+  app-network:
+    name: ${DOCKER_NETWORK:-bridge-network}
+    external: true

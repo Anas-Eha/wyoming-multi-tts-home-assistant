@@ -1,0 +1,97 @@
+[project]
+name = "wyoming-multi-tts"
+version = "0.1.0"
+description = "Unified Wyoming TTS server with web-managed multi-engine switching"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0,<1",
+    "huggingface_hub>=0.31.0,<1",
+    "jinja2>=3.1.0,<4",
+    "numpy>=1.26,<3",
+    "python-multipart>=0.0.9,<1",
+    "soundfile>=0.12,<1",
+    "uvicorn[standard]>=0.30.0,<1",
+    "wyoming>=1.8.0,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27.0,<1",
+    "pytest>=8.0,<9",
+]
+chatterbox = [
+    "chatterbox-tts>=0.1.2",
+    "torch>=2.6,<2.7",
+    "torchaudio>=2.6,<2.7",
+    "transformers==4.46.3",
+]
+xtts = [
+    "TTS>=0.22.0,<0.23",
+    "torch>=2.6,<2.7",
+    "torchaudio>=2.6,<2.7",
+    "transformers==4.43.1",
+]
+qwen = [
+    "flash-attn>=2.8.0,<3",
+    "qwen-tts>=0.0.2",
+    "torch>=2.6,<2.7",
+    "torchaudio>=2.6,<2.7",
+    "transformers==4.57.3",
+]
+whisperspeech = [
+    "ipython>=9.0,<10",
+    "speechbrain<1.0",
+    "torch>=2.6,<2.7",
+    "torchaudio>=2.6,<2.7",
+    "vocos>=0.1.0,<1",
+    "WhisperSpeech @ git+https://github.com/WhisperSpeech/WhisperSpeech.git",
+]
+mms = [
+    "soundfile>=0.12,<1",
+    "torch>=2.6,<2.7",
+    "torchaudio>=2.6,<2.7",
+    "transformers>=4.57.0,<4.58",
+    "sentencepiece>=0.2,<1",
+]
+fish = []
+
+[project.scripts]
+wyoming-multi-tts = "app.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "app",
+    "app.audio",
+    "app.engines",
+    "app.http",
+    "app.state",
+    "app.wyoming",
+]
+
+[tool.setuptools.package-data]
+app = ["templates/*.html", "static/*.css", "static/*.js"]
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "chatterbox" },
+        { extra = "qwen" },
+    ],
+    [
+        { extra = "chatterbox" },
+        { extra = "xtts" },
+    ],
+    [
+        { extra = "xtts" },
+        { extra = "qwen" },
+    ],
+]
+
+[tool.uv.extra-build-dependencies]
+pkuseg = ["numpy"]
+flash-attn = ["torch", "setuptools", "wheel", "packaging", "ninja", "numpy", "psutil"]

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>wyoming-multi-tts</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero card">
+      <div class="hero-copy">
+        <p class="eyebrow">Wyoming Multi TTS</p>
+        <h1>Multi-engine TTS control panel</h1>
+      </div>
+    </section>
+
+    <section class="summary-grid">
+      <article class="card summary-card">
+        <span class="summary-label">Service</span>
+        <strong id="health-status" class="summary-value">-</strong>
+      </article>
+      <article class="card summary-card">
+        <span class="summary-label">HA Ready</span>
+        <strong id="health-ready" class="summary-value">-</strong>
+      </article>
+      <article class="card summary-card">
+        <span class="summary-label">Device</span>
+        <strong id="status-device" class="summary-value">-</strong>
+      </article>
+      <article class="card summary-card">
+        <span class="summary-label">Memory</span>
+        <strong id="resource-usage" class="summary-value">-</strong>
+        <span id="resource-usage-label" class="summary-subvalue">-</span>
+      </article>
+      <article class="card summary-card">
+        <span class="summary-label">Voices</span>
+        <strong id="health-voice-count" class="summary-value">-</strong>
+      </article>
+      <article class="card summary-card">
+        <span class="summary-label">Active Engine</span>
+        <strong id="selected-engine-chip" class="summary-value">-</strong>
+        <span class="summary-subvalue">Wyoming port <code>10210</code></span>
+      </article>
+    </section>
+
+    <section class="grid main-grid">
+      <article class="card">
+        <div class="card-header compact">
+          <div>
+            <h2>Engines</h2>
+          </div>
+          <button id="refresh-button" class="ghost-button" type="button">Refresh</button>
+        </div>
+        <div id="action-status" class="hint-box">Select an engine to switch and load it.</div>
+        <div id="engine-list" class="engine-list"></div>
+      </article>
+
+      <article class="card">
+        <div class="card-header compact">
+          <div>
+            <h2>Synthesis Test</h2>
+          </div>
+          <span id="state-badge" class="badge">-</span>
+        </div>
+        <form id="synthesize-form" class="form">
+          <div class="field-grid">
+            <label>
+              Voice
+              <select id="voice-select"></select>
+            </label>
+            <label>
+              Language
+              <select id="language-select"></select>
+            </label>
+          </div>
+          <label>
+            Text
+            <textarea id="text-input" rows="5">This is a speech synthesis test for Home Assistant.</textarea>
+          </label>
+          <div class="hint-box" id="voice-summary">Load an engine to populate voices and languages.</div>
+          <div class="button-row actions">
+            <button id="synthesize-button" type="submit">Generate Speech</button>
+          </div>
+        </form>
+        <div class="audio-shell">
+          <audio id="audio-player" controls preload="none"></audio>
+        </div>
+        <div class="metrics">
+          <div class="metric"><span>Load</span><strong id="metric-load">-</strong></div>
+          <div class="metric"><span>Synthesis</span><strong id="metric-synth">-</strong></div>
+          <div class="metric"><span>End-to-end</span><strong id="metric-e2e">-</strong></div>
+          <div class="metric"><span>Audio</span><strong id="metric-audio">-</strong></div>
+          <div class="metric"><span>RTF</span><strong id="metric-rtf">-</strong></div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
