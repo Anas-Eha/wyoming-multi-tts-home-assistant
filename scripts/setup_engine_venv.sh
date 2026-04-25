@@ -60,7 +60,8 @@ case "${ENGINE_NAME}" in
       # Install flash-attn if available (pre-built wheel or build from source)
       if compgen -G "${FLASH_ATTN_WHEEL_DIR}/flash_attn-*.whl" > /dev/null; then
         echo "Installing flash-attn from local wheel..." >&2
-        uv pip install --python "${VENV_PATH}/bin/python" "${FLASH_ATTN_WHEEL_DIR}/flash_attn-*.whl"
+        FLASH_ATTN_WHEEL=$(ls "${FLASH_ATTN_WHEEL_DIR}"/flash_attn-*.whl | head -n1)
+        uv pip install --python "${VENV_PATH}/bin/python" "${FLASH_ATTN_WHEEL}"
       else
         echo "WARNING: No flash-attn wheel found in ${FLASH_ATTN_WHEEL_DIR}. Installing without flash-attn (slower inference)." >&2
       fi
