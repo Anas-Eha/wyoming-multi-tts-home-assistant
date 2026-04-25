@@ -9,10 +9,8 @@ services:
     env_file:
       - .env
     ports:
-      - "0.0.0.0:10210:10210"
-      - "0.0.0.0:8280:8280"
-    networks:
-      - app-network
+      - "10210:10210"
+      - "8280:8280"
     volumes:
       - ./data/hf-cache:/data/hf-cache
       - ./data/state:/data/state
@@ -53,8 +51,3 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-
-networks:
-  app-network:
-    name: ${DOCKER_NETWORK:-bridge-network}
-    external: true
