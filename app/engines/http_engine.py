@@ -10,8 +10,8 @@ import subprocess
 import sys
 import time
 from typing import Any
-from urllib import error as urllib_error
-from urllib import request as urllib_request
+
+import httpx
 
 from .base import EngineError, EngineNotLoadedError, EngineSynthesisResult, EngineStatus, TtsEngine
 
@@ -139,6 +139,12 @@ class HttpEngine(TtsEngine):
         self._cached_status = self._status_during_runner_transition()
         env = os.environ.copy()
         self._log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Rotate log if it gets too large (>10MB)
+        if self._log_path.exists() and self._log_path.stat().st_size > 10 * 1024 * 1024:
+            backup = self._log_path.with_suffix(".log.old")
+            if backup.exists():
+                backup.unlink()
+            self._log_path.rename(backup)
         log_handle = self._log_path.open("a+", encoding="utf-8")
         self._process = subprocess.Popen(
             [
@@ -212,29 +218,37 @@ class HttpEngine(TtsEngine):
     ) -> dict[str, Any]:
         if self._port is None:
             raise EngineError(f"{self._display_name} HTTP runner has no assigned port")
-        data = None if payload is None else json.dumps(payload).encode("utf-8")
-        req = urllib_request.Request(
-            f"http://{self._host}:{self._port}{path}",
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method=method,
-        )
+        url = f"http://{self._host}:{self._port}{path}"
+        request_timeout = timeout or self._http_timeout_seconds
         try:
-            with urllib_request.urlopen(req, timeout=timeout or self._http_timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-        except urllib_error.HTTPError as err:
-            body = err.read().decode("utf-8", errors="ignore")
-            try:
-                error_payload = json.loads(body)
-            except json.JSONDecodeError as decode_err:
-                raise EngineError(
-                    f"{self._display_name} HTTP runner returned invalid error response: {body}"
-                ) from decode_err
-            self._raise_http_error(error_payload)
-        except urllib_error.URLError as err:
+            with httpx.Client(timeout=request_timeout) as client:
+                if method == "GET":
+                    response = client.get(url)
+                else:
+                    response = client.post(url, json=payload)
+        except httpx.ConnectError as err:
             raise EngineError(
-                f"{self._display_name} HTTP runner request failed: {err.reason}"
+                f"{self._display_name} HTTP runner connection failed: {err}"
             ) from err
+        except httpx.TimeoutException as err:
+            raise EngineError(
+                f"{self._display_name} HTTP runner request timed out after {request_timeout}s"
+            ) from err
+        except httpx.HTTPError as err:
+            raise EngineError(
+                f"{self._display_name} HTTP runner request failed: {err}"
+            ) from err
+
+        if response.status_code >= 400:
+            try:
+                error_payload = response.json()
+            except json.JSONDecodeError:
+                raise EngineError(
+                    f"{self._display_name} HTTP runner returned {response.status_code}: {response.text}"
+                )
+            self._raise_http_error(error_payload)
+
+        response_payload = response.json()
         if response_payload.get("ok"):
             return response_payload
         self._raise_http_error(response_payload)

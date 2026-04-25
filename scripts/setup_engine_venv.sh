@@ -41,11 +41,6 @@ export UV_LINK_MODE="${UV_LINK_MODE:-copy}"
 export UV_EXTRA_INDEX_URL="${UV_EXTRA_INDEX_URL:-https://download.pytorch.org/whl/cu126}"
 FLASH_ATTN_WHEEL_DIR="${FLASH_ATTN_WHEEL_DIR:-/app/wheelhouse}"
 
-if [[ "${ENGINE_NAME}" == "qwen" ]] && compgen -G "${FLASH_ATTN_WHEEL_DIR}/flash_attn-*.whl" > /dev/null; then
-  export UV_FIND_LINKS="${FLASH_ATTN_WHEEL_DIR}"
-  echo "Using local flash-attn wheel from ${FLASH_ATTN_WHEEL_DIR}" >&2
-fi
-
 uv venv --clear --python 3.11 "${VENV_PATH}"
 
 case "${ENGINE_NAME}" in
@@ -58,11 +53,17 @@ case "${ENGINE_NAME}" in
       ;;
     qwen)
       uv pip install --python "${VENV_PATH}/bin/python" \
-        "flash-attn>=2.8.0,<3" \
         "qwen-tts>=0.0.2" \
         "torch>=2.6,<2.7" \
         "torchaudio>=2.6,<2.7" \
         "transformers==4.57.3"
+      # Install flash-attn if available (pre-built wheel or build from source)
+      if compgen -G "${FLASH_ATTN_WHEEL_DIR}/flash_attn-*.whl" > /dev/null; then
+        echo "Installing flash-attn from local wheel..." >&2
+        uv pip install --python "${VENV_PATH}/bin/python" "${FLASH_ATTN_WHEEL_DIR}/flash_attn-*.whl"
+      else
+        echo "WARNING: No flash-attn wheel found in ${FLASH_ATTN_WHEEL_DIR}. Installing without flash-attn (slower inference)." >&2
+      fi
       ;;
     xtts)
       uv pip install --python "${VENV_PATH}/bin/python" \

@@ -30,10 +30,8 @@ def _as_mono_float_array(audio: Any) -> np.ndarray:
 
 def float32_to_pcm16(audio: Iterable[float] | Any) -> bytes:
     mono_audio = _as_mono_float_array(audio)
-    pcm = array("h")
-    for sample in mono_audio:
-        clipped = max(-1.0, min(1.0, float(sample)))
-        pcm.append(int(clipped * 32767.0))
+    clipped = np.clip(mono_audio, -1.0, 1.0)
+    pcm = (clipped * 32767.0).astype(np.int16)
     return pcm.tobytes()
 
 

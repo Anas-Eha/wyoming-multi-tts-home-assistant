@@ -30,3 +30,4 @@ class OpenAiSpeechRequest(BaseModel):
     voice: str | None = None
     response_format: str = "wav"
     speed: float | None = None
+    stream: bool = False

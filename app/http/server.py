@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 import base64
+import os
 from pathlib import Path
+from typing import AsyncIterator
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.audio.text_chunking import split_text_for_tts
 from app.engines.base import EngineError, EngineNotLoadedError
 from app.engines.manager import EngineManager
 
 from .models import ActivateEngineRequest, EngineOptionsRequest, OpenAiSpeechRequest, SelectEngineRequest, SynthesizeRequest
 
 OPENAI_SPEECH_MODEL = "wyoming-multi-tts"
+_SYNTHESIS_INCLUDE_BASE64 = os.getenv("SYNTHESIS_INCLUDE_BASE64", "true").lower() in ("true", "1", "yes")
 
 
 def _json_response(payload) -> JSONResponse:
@@ -31,7 +35,10 @@ def _server_error(err: Exception) -> HTTPException:
 
 def _synthesis_payload(result) -> dict:
     payload = result.asdict()
-    payload["wav_base64"] = base64.b64encode(result.wav_audio).decode("ascii")
+    if _SYNTHESIS_INCLUDE_BASE64:
+        payload["wav_base64"] = base64.b64encode(result.wav_audio).decode("ascii")
+    else:
+        payload["wav_bytes"] = len(result.wav_audio)
     return payload
 
 
@@ -110,7 +117,9 @@ def create_http_app(manager: EngineManager) -> FastAPI:
     async def api_load_engine():
         try:
             return _json_response(await manager.load_active_engine())
-        except Exception as err:  # pragma: no cover - runtime dependent
+        except EngineError as err:
+            raise _bad_request(err) from err
+        except RuntimeError as err:
             raise _server_error(err) from err
 
     @app.post("/api/engines/unload")
@@ -134,13 +143,15 @@ def create_http_app(manager: EngineManager) -> FastAPI:
             raise HTTPException(status_code=409, detail=str(err)) from err
         except EngineError as err:
             raise _bad_request(err) from err
-        except Exception as err:  # pragma: no cover - runtime dependent
+        except RuntimeError as err:
             raise _server_error(err) from err
 
         return _json_response(_synthesis_payload(result))
 
     @app.post("/v1/audio/speech")
     async def openai_audio_speech(request: OpenAiSpeechRequest):
+        if request.stream:
+            return await _openai_audio_speech_stream(request, manager)
         try:
             result = await manager.synthesize(
                 text=request.input,
@@ -154,8 +165,56 @@ def create_http_app(manager: EngineManager) -> FastAPI:
             raise _bad_request(err) from err
         except HTTPException:
             raise
-        except Exception as err:  # pragma: no cover - runtime dependent
+        except RuntimeError as err:
             raise _server_error(err) from err
         return _audio_response(result, request.response_format)
 
     return app
+
+
+async def _openai_audio_speech_stream(
+    request: OpenAiSpeechRequest,
+    manager: EngineManager,
+) -> StreamingResponse:
+    """Stream audio chunks as they are synthesized from text fragments."""
+    normalized_format = request.response_format.strip().lower()
+    if normalized_format not in ("wav", "pcm"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported response_format '{request.response_format}'. Supported formats: wav, pcm",
+        )
+
+    media_type = "audio/wav" if normalized_format == "wav" else "application/octet-stream"
+    chunks = split_text_for_tts(request.input)
+    if not chunks:
+        raise HTTPException(status_code=400, detail="Empty input text")
+
+    async def audio_generator() -> AsyncIterator[bytes]:
+        for i, chunk_text in enumerate(chunks):
+            try:
+                result = await manager.synthesize(
+                    text=chunk_text,
+                    voice=request.voice,
+                    language=None,
+                    options=None,
+                )
+            except EngineNotLoadedError as err:
+                raise HTTPException(status_code=409, detail=str(err)) from err
+            except EngineError as err:
+                raise _bad_request(err) from err
+
+            if normalized_format == "wav":
+                # For streaming, each chunk needs its own WAV header
+                # so the client can play it incrementally
+                yield result.wav_audio
+            else:
+                yield result.pcm_audio
+
+    return StreamingResponse(
+        audio_generator(),
+        media_type=media_type,
+        headers={
+            "X-TTS-Model": OPENAI_SPEECH_MODEL,
+            "X-TTS-Streaming": "true",
+        },
+    )

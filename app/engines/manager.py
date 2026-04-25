@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-import time
-from contextlib import asynccontextmanager
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from typing import Any
 
 from app.state.session_state import SessionStateStore
@@ -20,9 +21,9 @@ class EngineManager:
             raise ValueError("Engine registry cannot be empty")
         self.registry = registry
         self.state_store = state_store
-        self._async_lock: asyncio.Lock | None = None
-        self._async_lock_loop: asyncio.AbstractEventLoop | None = None
-        self._state_lock = threading.RLock()
+        self._async_lock = asyncio.Lock()
+        self._sync_lock = threading.Lock()
+        self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="engine_")
         default_engine_id = next(iter(registry))
         self.session = state_store.load(default_engine_id=default_engine_id)
         session_updated = False
@@ -43,32 +44,12 @@ class EngineManager:
 
     @asynccontextmanager
     async def locked(self):
-        lock = self._get_async_lock()
-        async with lock:
+        async with self._async_lock:
             yield
-
-    def _get_async_lock(self) -> asyncio.Lock:
-        loop = asyncio.get_running_loop()
-        if self._async_lock is None or self._async_lock_loop is not loop:
-            self._async_lock = asyncio.Lock()
-            self._async_lock_loop = loop
-        return self._async_lock
 
     async def _run_blocking(self, func):
         loop = asyncio.get_running_loop()
-        future = loop.create_future()
-
-        def runner() -> None:
-            try:
-                result = func()
-            except Exception as err:
-                loop.call_soon_threadsafe(future.set_exception, err)
-                return
-            loop.call_soon_threadsafe(future.set_result, result)
-
-        thread = threading.Thread(target=runner, daemon=True)
-        thread.start()
-        return await future
+        return await loop.run_in_executor(self._executor, func)
 
     @property
     def active_engine(self) -> TtsEngine:
@@ -254,9 +235,8 @@ class EngineManager:
         return self.session.autoload_active_engine and self.session.active_engine_loaded
 
     def _save_session(self) -> None:
-        with self._state_lock:
-            self.session.last_voice, self.session.last_language = self.session.selection_for(self.session.active_engine_id)
-            self.state_store.save(self.session)
+        self.session.last_voice, self.session.last_language = self.session.selection_for(self.session.active_engine_id)
+        self.state_store.save(self.session)
 
     async def select_engine(self, engine_id: str) -> dict[str, Any]:
         async with self.locked():
@@ -318,7 +298,7 @@ class EngineManager:
             return self.active_status()
 
     def autoload_active_engine_sync(self) -> dict[str, Any] | None:
-        with self._state_lock:
+        with self._sync_lock:
             if not self.should_autoload():
                 return None
             if self.active_engine.is_loaded():
@@ -358,6 +338,7 @@ class EngineManager:
         voice: str | None,
         language: str | None,
         options: dict[str, Any] | None = None,
+        timeout: float = 300.0,
     ) -> EngineSynthesisResult:
         async with self.locked():
             started = time.perf_counter()
@@ -365,19 +346,22 @@ class EngineManager:
             merged_options = self._resolved_engine_options(engine)
             if options:
                 merged_options.update(self._sanitize_engine_options(engine, options))
-            result = await self._run_blocking(
-                lambda: engine.synthesize(
-                    text,
-                    voice=voice,
-                    language=language,
-                    options=merged_options or None,
-                )
+            result = await asyncio.wait_for(
+                self._run_blocking(
+                    lambda: engine.synthesize(
+                        text,
+                        voice=voice,
+                        language=language,
+                        options=merged_options or None,
+                    )
+                ),
+                timeout=timeout,
             )
             result.metrics.end_to_end_time_ms = round((time.perf_counter() - started) * 1000.0, 2)
-            self.session.set_selection_for(
+            self.session.set_selection(
                 self.session.active_engine_id,
-                voice=result.voice,
-                language=result.language,
+                result.voice,
+                result.language,
             )
             self._save_session()
             return result

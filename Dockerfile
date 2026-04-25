@@ -1,26 +1,54 @@
-FROM nvidia/cuda:12.6.2-devel-ubuntu22.04
+# Stage 1: Builder - compile native extensions that require CUDA toolkit
+FROM nvidia/cuda:12.6.2-devel-ubuntu22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    python3.11 \
+    python3.11-dev \
+    python3.11-venv \
+    python3-pip \
+    cmake \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+WORKDIR /build
+
+# Build flash-attn wheel if not already provided in wheelhouse/
+COPY wheelhouse ./wheelhouse
+RUN if compgen -G "/build/wheelhouse/flash_attn-*.whl" > /dev/null 2>&1; then \
+        echo "Using pre-built flash-attn wheel from wheelhouse/" >&2; \
+    else \
+        echo "Building flash-attn wheel from source..." >&2 && \
+        python3.11 -m venv /build/.build-venv && \
+        /build/.build-venv/bin/pip install --upgrade pip && \
+        /build/.build-venv/bin/pip install "torch>=2.6,<2.7" --extra-index-url https://download.pytorch.org/whl/cu126 && \
+        /build/.build-venv/bin/pip wheel --no-deps "flash-attn>=2.8.0,<3" -w /build/wheelhouse/ --extra-index-url https://download.pytorch.org/whl/cu126; \
+    fi
+
+# Stage 2: Runtime - minimal image for inference only
+FROM nvidia/cuda:12.6.2-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV UV_LINK_MODE=copy
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3 \
-    python3-dev \
-    python3-venv \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-venv \
     ffmpeg \
     libportaudio2 \
-    portaudio19-dev \
     libsndfile1 \
-    libsox-dev \
-    sox \
     curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN echo "Python path:" >&2 && which python3 >&2
-RUN echo "Python version:" >&2 && python3 --version >&2
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
@@ -28,7 +56,7 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
 COPY scripts ./scripts
-COPY wheelhouse ./wheelhouse
+COPY --from=builder /build/wheelhouse ./wheelhouse
 
 
 RUN --mount=type=cache,target=/tmp/uv-cache \

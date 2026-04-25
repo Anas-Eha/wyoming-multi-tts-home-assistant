@@ -32,6 +32,10 @@ from app.audio.audio_utils import estimate_audio_duration_ms, real_time_factor
 
 from .base import EngineStatus, EngineVoice, SynthesisMetrics
 
+# Cache for best_cuda_device() to avoid repeated nvidia-smi subprocess calls
+_cuda_device_cache: tuple[str | None, float] = (None, 0.0)
+_CUDA_DEVICE_CACHE_TTL = float(os.getenv("CUDA_DEVICE_CACHE_TTL", "30"))  # seconds
+
 
 def preferred_device(explicit: str | None = None) -> str:
     if explicit:
@@ -42,6 +46,17 @@ def preferred_device(explicit: str | None = None) -> str:
 
 
 def best_cuda_device() -> str | None:
+    global _cuda_device_cache
+    cached_value, cached_at = _cuda_device_cache
+    if cached_value is not None and (time.monotonic() - cached_at) < _CUDA_DEVICE_CACHE_TTL:
+        return cached_value
+
+    result = _probe_cuda_devices()
+    _cuda_device_cache = (result, time.monotonic())
+    return result
+
+
+def _probe_cuda_devices() -> str | None:
     if not torch.cuda.is_available():
         return None
     try:

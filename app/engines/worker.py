@@ -6,11 +6,11 @@ import argparse
 import io
 import json
 import os
-from contextlib import redirect_stdout
-from importlib import import_module
-from pathlib import Path
 import sys
 import tempfile
+from contextlib import redirect_stderr, redirect_stdout
+from importlib import import_module
+from pathlib import Path
 from typing import Any
 
 from .base import EngineError, EngineNotLoadedError, EngineSynthesisResult, EngineStatus, TtsEngine
@@ -24,6 +24,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def load_engine(module_path: str, class_name: str) -> TtsEngine:
+    # Suppress stdout only during import — many libraries print spurious
+    # startup messages that would corrupt the JSON protocol on stdout.
     with redirect_stdout(io.StringIO()):
         module = import_module(module_path)
         engine_class = getattr(module, class_name)
@@ -45,12 +47,15 @@ def write_error(err: Exception) -> None:
 
 
 def write_message(payload: dict[str, Any]) -> None:
+    # Write protocol messages to stderr so they don't mix with
+    # any engine stdout output. The IsolatedEngine reads from
+    # the response file, not from stdout.
     body = json.dumps(payload)
-    sys.stdout.write(f"__JSON__ {len(body)}\n")
-    sys.stdout.flush()
-    sys.stdout.write(body)
-    sys.stdout.write("\n")
-    sys.stdout.flush()
+    sys.stderr.write(f"__JSON__ {len(body)}\n")
+    sys.stderr.flush()
+    sys.stderr.write(body)
+    sys.stderr.write("\n")
+    sys.stderr.flush()
 
 
 def write_response_file(response_path: str, payload: dict[str, Any]) -> None:
@@ -71,44 +76,56 @@ def write_response_file(response_path: str, payload: dict[str, Any]) -> None:
 
 
 def run_command(engine: TtsEngine, command: str, payload: dict[str, Any]) -> dict[str, Any]:
-    with redirect_stdout(io.StringIO()):
-        if command == "status":
-            return {"status": engine.status().asdict()}
-        if command == "load":
-            status = engine.load(payload.get("device_preference"))
-            return {"status": status.asdict()}
-        if command == "unload":
-            engine.unload()
-            return {"status": engine.status().asdict()}
-        if command == "synthesize":
-            result = engine.synthesize(
-                payload["text"],
-                voice=payload.get("voice"),
-                language=payload.get("language"),
-                options=payload.get("options"),
-            )
-            wav_file = tempfile.NamedTemporaryFile(
-                prefix="wyoming-multi-tts-wav-",
-                suffix=".wav",
-                delete=False,
-            )
-            pcm_file = tempfile.NamedTemporaryFile(
-                prefix="wyoming-multi-tts-pcm-",
-                suffix=".bin",
-                delete=False,
-            )
-            try:
-                Path(wav_file.name).write_bytes(result.wav_audio)
-                Path(pcm_file.name).write_bytes(result.pcm_audio)
-            finally:
-                wav_file.close()
-                pcm_file.close()
+    # Do NOT redirect stdout here — let engine output flow to stderr
+    # so it appears in the log file for debugging.
+    if command == "status":
+        return {"status": engine.status().asdict()}
+    if command == "load":
+        status = engine.load(payload.get("device_preference"))
+        return {"status": status.asdict()}
+    if command == "unload":
+        engine.unload()
+        return {"status": engine.status().asdict()}
+    if command == "synthesize":
+        result = engine.synthesize(
+            payload["text"],
+            voice=payload.get("voice"),
+            language=payload.get("language"),
+            options=payload.get("options"),
+        )
+        wav_file = tempfile.NamedTemporaryFile(
+            prefix="wyoming-multi-tts-wav-",
+            suffix=".wav",
+            delete=False,
+        )
+        pcm_file = tempfile.NamedTemporaryFile(
+            prefix="wyoming-multi-tts-pcm-",
+            suffix=".bin",
+            delete=False,
+        )
+        try:
+            Path(wav_file.name).write_bytes(result.wav_audio)
+            Path(pcm_file.name).write_bytes(result.pcm_audio)
             return {
                 "result": result.to_file_transport_dict(
                     wav_path=wav_file.name,
                     pcm_path=pcm_file.name,
                 )
             }
+        except Exception:
+            # Clean up temp files on error
+            try:
+                Path(wav_file.name).unlink(missing_ok=True)
+            except OSError:
+                pass
+            try:
+                Path(pcm_file.name).unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise
+        finally:
+            wav_file.close()
+            pcm_file.close()
     raise EngineError(f"Unsupported command '{command}'")
 
 
@@ -127,7 +144,16 @@ def main() -> None:
                 dict(message.get("payload", {})),
             )
             response_payload = {"ok": True, **payload}
-        except (EngineError, EngineNotLoadedError, Exception) as err:
+        except (EngineError, EngineNotLoadedError) as err:
+            response_payload = {
+                "ok": False,
+                "error": str(err),
+                "error_type": err.__class__.__name__,
+            }
+        except Exception as err:
+            # Log unexpected errors to stderr for debugging
+            sys.stderr.write(f"UNEXPECTED ERROR: {err.__class__.__name__}: {err}\n")
+            sys.stderr.flush()
             response_payload = {
                 "ok": False,
                 "error": str(err),

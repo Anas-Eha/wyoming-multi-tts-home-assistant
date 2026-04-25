@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import select
 import subprocess
 import sys
 import tempfile
@@ -146,31 +145,37 @@ class IsolatedEngine(TtsEngine):
         response_path: Path,
     ) -> dict[str, Any]:
         deadline = time.monotonic() + self._rpc_timeout_seconds
+        poll_interval = 0.05
+        
         while True:
             if response_path.exists():
                 try:
-                    payload = json.loads(response_path.read_text(encoding="utf-8"))
-                finally:
-                    response_path.unlink(missing_ok=True)
-                return payload
+                    content = response_path.read_text(encoding="utf-8")
+                    if content:  # Ensure file is not empty (partial write)
+                        payload = json.loads(content)
+                        response_path.unlink(missing_ok=True)
+                        return payload
+                except json.JSONDecodeError:
+                    # File exists but not valid JSON yet, wait for write to complete
+                    pass
+                except OSError:
+                    pass
+                    
             remaining = max(0.0, deadline - time.monotonic())
             if remaining == 0.0:
                 self._stop_process()
                 raise EngineError(
                     f"{self._display_name} worker timed out after {self._rpc_timeout_seconds:.0f}s"
                 )
+                
             if process.poll() is not None:
                 stderr = self._read_stderr()
                 self._stop_process()
                 raise EngineError(
                     f"{self._display_name} worker terminated unexpectedly: {stderr}"
                 )
-            time.sleep(min(0.05, remaining))
-            if not response_path.exists() and time.monotonic() >= deadline:
-                self._stop_process()
-                raise EngineError(
-                    f"{self._display_name} worker timed out after {self._rpc_timeout_seconds:.0f}s"
-                )
+                
+            time.sleep(min(poll_interval, remaining))
 
     def _ensure_process(self) -> subprocess.Popen[str]:
         if self._process is not None and self._process.poll() is None:
@@ -178,6 +183,12 @@ class IsolatedEngine(TtsEngine):
         python_path = self._resolve_python()
         env = os.environ.copy()
         self._log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Rotate log if it gets too large (>10MB)
+        if self._log_path.exists() and self._log_path.stat().st_size > 10 * 1024 * 1024:
+            backup = self._log_path.with_suffix(".log.old")
+            if backup.exists():
+                backup.unlink()
+            self._log_path.rename(backup)
         log_handle = self._log_path.open("a+", encoding="utf-8")
         self._process = subprocess.Popen(
             [
