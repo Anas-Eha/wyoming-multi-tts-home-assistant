@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN which python3 && python3 --version
+RUN echo "Python path:" && which python3
+RUN echo "Python version:" && python3 --version
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
