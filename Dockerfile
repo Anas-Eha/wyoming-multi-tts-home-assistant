@@ -29,7 +29,8 @@ RUN if compgen -G "/build/wheelhouse/flash_attn-*.whl" > /dev/null 2>&1; then \
         python3.11 -m venv /build/.build-venv && \
         /build/.build-venv/bin/pip install --upgrade pip && \
         /build/.build-venv/bin/pip install "torch>=2.6,<2.7" --extra-index-url https://download.pytorch.org/whl/cu126 && \
-        /build/.build-venv/bin/pip wheel --no-deps --no-build-isolation --no-build-isolation "flash-attn>=2.8.0,<3" -w /build/wheelhouse/ --extra-index-url https://download.pytorch.org/whl/cu126; \
+        /build/.build-venv/bin/pip install packaging setuptools wheel && \
+        /build/.build-venv/bin/pip wheel --no-deps --no-build-isolation "flash-attn>=2.8.0,<3" -w /build/wheelhouse/ --extra-index-url https://download.pytorch.org/whl/cu126; \
     fi
 
 # Stage 2: Runtime - minimal image for inference only
