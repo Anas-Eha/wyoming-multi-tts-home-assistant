@@ -69,16 +69,5 @@ def build_registry() -> dict[str, TtsEngine]:
             default_python="/app/.venv-mms/bin/python",
             fallback_languages=["pl"],
         ),
-        _isolated_engine(
-            engine_id="fish_s2_pro",
-            display_name="Fish Audio S2 Pro",
-            module_path="app.engines.fish_engine",
-            class_name="FishS2ProEngine",
-            python_env_var="FISH_PYTHON",
-            default_python="/app/.venv-fish/bin/python",
-            fallback_languages=[
-                "pl", "en", "zh", "ja", "ko", "es", "pt", "ar", "ru", "fr", "de", "sv", "it", "tr", "no", "nl", "fi", "cs",
-            ],
-        ),
     ]
     return {engine.engine_id(): engine for engine in engines}

@@ -4,7 +4,7 @@ set -euo pipefail
 ENGINE_NAME="${1:-}"
 
 if [[ -z "${ENGINE_NAME}" ]]; then
-  echo "Usage: $0 <chatterbox|qwen|xtts|whisperspeech|mms|fish>" >&2
+  echo "Usage: $0 <chatterbox|qwen|xtts|whisperspeech|mms>" >&2
   exit 1
 fi
 
@@ -29,10 +29,6 @@ case "${ENGINE_NAME}" in
     VENV_PATH=".venv-mms"
     EXTRA_NAME="mms"
     ;;
-  fish)
-    VENV_PATH=".venv-fish"
-    EXTRA_NAME="fish"
-    ;;
   *)
     echo "Unsupported engine '${ENGINE_NAME}'" >&2
     exit 1
@@ -52,11 +48,7 @@ fi
 
 uv venv --clear --python 3.11 "${VENV_PATH}"
 
-if [[ "${ENGINE_NAME}" == "fish" ]]; then
-  FISH_REPO_DIR="${FISH_SPEECH_REPO_DIR:-/opt/fish-speech}"
-  uv pip install --python "${VENV_PATH}/bin/python" "${FISH_REPO_DIR}[cu126]"
-else
-  case "${ENGINE_NAME}" in
+case "${ENGINE_NAME}" in
     chatterbox)
       uv pip install --python "${VENV_PATH}/bin/python" \
         "chatterbox-tts>=0.1.2" \
@@ -97,6 +89,5 @@ else
         "sentencepiece>=0.2,<1"
       ;;
   esac
-fi
 
 echo "Created ${VENV_PATH} for extra '${EXTRA_NAME}'"

@@ -34,14 +34,8 @@ services:
       WHISPERSPEECH_PYTHON: /app/.venv-whisperspeech/bin/python
       MMS_PYTHON: /app/.venv-mms/bin/python
       XTTS_PYTHON: /app/.venv-xtts/bin/python
-      FISH_PYTHON: /app/.venv-fish/bin/python
-      FISH_SPEECH_REPO_DIR: /opt/fish-speech
-      FISH_REFERENCE_DIR: /data/speakers/fish
-      FISH_ENABLE_COMPILE: "1"
-      FISH_S2_PRO_RPC_TIMEOUT_SECONDS: "1800"
       XTTS_MODEL_DIR: /data/hf-cache/xtts
       WHISPERSPEECH_MODEL_CACHE_DIR: /data/hf-cache/whisperspeech
-      FISH_S2_PRO_MODEL_ID: fishaudio/s2-pro
       QWEN_TTS_MODEL_ID: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
       CHATTERBOX_DEVICE: cuda
     deploy:

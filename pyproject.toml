@@ -54,7 +54,6 @@ mms = [
     "transformers>=4.57.0,<4.58",
     "sentencepiece>=0.2,<1",
 ]
-fish = []
 
 [project.scripts]
 wyoming-multi-tts = "app.__main__:main"

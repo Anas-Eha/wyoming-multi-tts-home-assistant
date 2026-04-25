@@ -174,9 +174,9 @@ def test_manager_persists_engine_options_and_merges_them_into_synthesis(tmp_path
         "normalize": {"type": "boolean", "default": True},
         "chunk_length": {"type": "integer", "default": 200, "min": 100, "max": 400},
     }
-    engine = FakeEngine("fish_s2_pro", runtime_options=runtime_options)
+    engine = FakeEngine("xtts_v2", runtime_options=runtime_options)
     store = SessionStateStore(tmp_path / "session.json")
-    manager = EngineManager({"fish_s2_pro": engine}, store)
+    manager = EngineManager({"xtts_v2": engine}, store)
 
     asyncio.run(
         manager.set_active_engine_options(
@@ -190,9 +190,9 @@ def test_manager_persists_engine_options_and_merges_them_into_synthesis(tmp_path
     )
     asyncio.run(manager.synthesize(text="x", voice="default", language="pl"))
 
-    restored = store.load(default_engine_id="fish_s2_pro")
-    assert restored.engine_options["fish_s2_pro"]["seed"] == 1234
-    assert restored.engine_options["fish_s2_pro"]["latency"] == "normal"
+    restored = store.load(default_engine_id="xtts_v2")
+    assert restored.engine_options["xtts_v2"]["seed"] == 1234
+    assert restored.engine_options["xtts_v2"]["latency"] == "normal"
     assert engine.last_options == {
         "seed": 1234,
         "latency": "normal",

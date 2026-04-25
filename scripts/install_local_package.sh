@@ -15,7 +15,6 @@ VENV_PATHS=(
   "/app/.venv-whisperspeech"
   "/app/.venv-mms"
   "/app/.venv-xtts"
-  "/app/.venv-fish"
 )
 
 for VENV_PATH in "${VENV_PATHS[@]}"; do

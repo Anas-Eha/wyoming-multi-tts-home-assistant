@@ -11,7 +11,6 @@ Multi-engine TTS server for Home Assistant using Wyoming Protocol. It exposes on
 - `XTTS-v2`
 - `Qwen3-TTS`
 - `MMS TTS Polish`
-- `Fish Audio S2 Pro`
 
 ## Requirements
 
@@ -144,7 +143,5 @@ Models and third-party runtimes keep their own licenses:
   https://huggingface.co/coqui/XTTS-v2
 - `WhisperSpeech`: MIT  
   https://github.com/WhisperSpeech/WhisperSpeech
-- `fishaudio/s2-pro`: Fish Audio Research License, commercial use requires a separate license from Fish Audio  
-  https://huggingface.co/fishaudio/s2-pro
 
-Commercial use depends on which engine and model weights you enable. In particular, `facebook/mms-tts-pol` is non-commercial under CC-BY-NC-4.0, and `fishaudio/s2-pro` requires a separate commercial license from Fish Audio.
+Commercial use depends on which engine and model weights you enable. In particular, `facebook/mms-tts-pol` is non-commercial under CC-BY-NC-4.0.

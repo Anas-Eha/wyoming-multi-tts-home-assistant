@@ -27,10 +27,6 @@ ENGINE_MEMORY_HINTS: dict[str, dict[str, str]] = {
         "gpu": "Observed <1 GiB VRAM",
         "cpu": "Low RAM footprint on CPU",
     },
-    "fish_s2_pro": {
-        "gpu": "Observed ~18-20 GiB VRAM",
-        "cpu": "CPU fallback, expect very high RAM usage",
-    },
 }
 
 

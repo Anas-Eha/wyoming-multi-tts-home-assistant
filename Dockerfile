@@ -30,8 +30,6 @@ COPY pyproject.toml uv.lock README.md ./
 COPY scripts ./scripts
 COPY wheelhouse ./wheelhouse
 
-RUN git clone --depth 1 https://github.com/fishaudio/fish-speech.git /opt/fish-speech
-RUN python3 /app/scripts/patch_fish_speech.py
 
 RUN --mount=type=cache,target=/tmp/uv-cache \
     chmod +x /app/scripts/setup_engine_venv.sh && \
@@ -53,8 +51,7 @@ RUN --mount=type=cache,target=/tmp/uv-cache \
     UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu126 /app/scripts/setup_engine_venv.sh qwen && \
     UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu126 /app/scripts/setup_engine_venv.sh whisperspeech && \
     UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu126 /app/scripts/setup_engine_venv.sh mms && \
-    UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu126 /app/scripts/setup_engine_venv.sh xtts && \
-    UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu126 /app/scripts/setup_engine_venv.sh fish
+    UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu126 /app/scripts/setup_engine_venv.sh xtts
 
 COPY app ./app
 
@@ -71,7 +68,6 @@ ENV QWEN_PYTHON="/app/.venv-qwen/bin/python"
 ENV WHISPERSPEECH_PYTHON="/app/.venv-whisperspeech/bin/python"
 ENV MMS_PYTHON="/app/.venv-mms/bin/python"
 ENV XTTS_PYTHON="/app/.venv-xtts/bin/python"
-ENV FISH_PYTHON="/app/.venv-fish/bin/python"
 
 EXPOSE 10210 8280
 

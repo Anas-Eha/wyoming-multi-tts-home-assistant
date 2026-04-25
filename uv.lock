@@ -5603,7 +5603,7 @@ requires-dist = [
     { name = "whisperspeech", marker = "extra == 'whisperspeech'", git = "https://github.com/WhisperSpeech/WhisperSpeech.git" },
     { name = "wyoming", specifier = ">=1.8.0,<2" },
 ]
-provides-extras = ["dev", "chatterbox", "xtts", "qwen", "whisperspeech", "fish"]
+provides-extras = ["dev", "chatterbox", "xtts", "qwen", "whisperspeech"]
 
 [[package]]
 name = "yarl"

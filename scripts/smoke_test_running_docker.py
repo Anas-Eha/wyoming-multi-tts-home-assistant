@@ -133,7 +133,6 @@ def main() -> int:
         EngineCase("whisperspeech", "To jest sekwencyjny smoke test silnika WhisperSpeech.", language="pl"),
         EngineCase("xtts_v2", "To jest sekwencyjny smoke test silnika XTTS v2.", language="pl"),
         EngineCase("qwen_tts_polish", "This is a sequential smoke test for the Qwen3-TTS engine.", voice="Ryan", language="en", load_timeout=240, synth_timeout=240),
-        EngineCase("fish_s2_pro", "To jest sekwencyjny smoke test silnika Fish S2 Pro.", language="pl", load_timeout=240, synth_timeout=240),
     ]
 
     status, payload = http_json("GET", "/health", timeout=30)
