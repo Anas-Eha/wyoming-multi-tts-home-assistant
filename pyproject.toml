@@ -68,7 +68,6 @@ packages = [
     "app.audio",
     "app.engines",
     "app.http",
-    "app.state",
     "app.wyoming",
 ]
 
