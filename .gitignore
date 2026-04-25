@@ -14,7 +14,7 @@ build/
 memory.md
 implementation_plan.md
 data/
-state/
+state.json
 *.pyc
 wheelhouse/*.whl
 !wheelhouse/.gitkeep
